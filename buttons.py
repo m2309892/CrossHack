@@ -5,6 +5,8 @@ from html.parser import HTMLParser
 
 admins = [...]  # список ID админов
 users = [..., ...]  # список ID сотрудников
+urlFormID = ... # ССЫЛКА НА ФОРМУ "ПРОВЕСТИ ЛЕКЦИЮ"
+
 TOKEN ='...'
 
 bot = telebot.TeleBot(TOKEN) 
@@ -18,7 +20,7 @@ def start(message):
     if message.from_user.id in admins and message.from_user.id in users:
         
         markup = types.InlineKeyboardMarkup()
-
+        
         button1 = types.InlineKeyboardButton("Провести лекцию", callback_data='give_lecture')
         button2 = types.InlineKeyboardButton("Мои лекции", callback_data='my_lecture')
         button3 = types.InlineKeyboardButton("Дайджест на неделю", callback_data='digest_for_week')
@@ -61,34 +63,49 @@ def handle_message(callback):
         
         
         markup = types.InlineKeyboardMarkup()
+
+        # ССЫЛКА НА ФОРМУ 
+        # просто для примера оставила тут ссылку на сайт Хабр
+        buttonForm = types.InlineKeyboardButton(text='Провести лекцию', callback_data='urlForm', url= 'https://habr.com/ru/all/')
         button_back = types.InlineKeyboardButton("Назад", callback_data='back')
+        markup.add(buttonForm)
         markup.add(button_back)
+
+        bot.send_message(callback.message.chat.id, "Выберите нужное действие:", reply_markup=markup)
 
     # Если пользователь нажал "Мои лекции"
-    if callback.data == 'give_lecture':
+    if callback.data == 'my_lecture':
         
         # какая тут логика?
-        
+        # как сделать список лекций в виде кнопок?
         
         markup = types.InlineKeyboardMarkup()
         button_back = types.InlineKeyboardButton("Назад", callback_data='back')
         markup.add(button_back)
+        bot.send_message(callback.message.chat.id, "Выберите нужное действие:", reply_markup=markup)
 
     # Если пользователь нажал "Дайджест на неделю"
-    if callback.data == 'give_lecture':
+    if callback.data == 'digest_for_week':
         
         # какая тут логика?
         
-        bot.send_message(callback.message.chat.id, "Список запланированных лекций:")
-        
         markup = types.InlineKeyboardMarkup()
         button_back = types.InlineKeyboardButton("Назад", callback_data='back')
+        # Кнопка сортировки (по дате)
+        butSortDate = types.InlineKeyboardButton("Сортировка по дате", callback_data='back')
+        # Кнопка сортировки (по апруву)
+        butSortApprove  = types.InlineKeyboardButton("Сортировка по одобрению", callback_data='back')
+        markup.add(butSortDate)
+        markup.add(butSortApprove)
         markup.add(button_back)
+        bot.send_message(callback.message.chat.id, "Список запланированных лекций:", reply_markup=markup)
 
     # Если пользователь нажал "Отчетность лекций за месяц"
     if callback.data == 'MonthLecRep':
+
         # какая тут логика?
         bot.send_message(callback.message.chat.id, "Пожалуйста, введите имя сотрудника:")
+
     # Если пользователь нажал "Подбор заявок от спикеров/организаторов"
     if callback.data == 'SelecofApplic':
         # создается новая менюшка
@@ -99,8 +116,9 @@ def handle_message(callback):
         markup.add(button1)
         markup.add(button2)
         markup.add(button_back)
-        bot.send_message(callback.message.chat.id, "Выберете нужное действие:", reply_markup=markup)
-
+        bot.send_message(callback.message.chat.id, "Выберите нужное действие:", reply_markup=markup)
+    
+    # Если пользователь нажал копку "Посмотреть результаты опроса"
     elif callback.data == 'resultsForms':
         bot.send_message(callback.message.chat.id, "Список всех действительных опросов:")
 
