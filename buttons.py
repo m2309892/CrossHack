@@ -3,9 +3,9 @@ from telebot import types # для указание типов
 from html.parser import HTMLParser
 
 
-admins = [879863726]  # список ID админов
-users = [879863722, 879863723]  # список ID сотрудников
-TOKEN ='7022904518:AAFn0SGZgfTD2matcfsuYFa5Ge4uh7Dbhg4'
+admins = [...]  # список ID админов
+users = [..., ...]  # список ID сотрудников
+TOKEN ='...'
 
 bot = telebot.TeleBot(TOKEN) 
 
