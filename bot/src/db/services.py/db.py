@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from bot.src.db.config import config
+from db.config import config
 
 engine = create_async_engine(
     config.db_url,
@@ -10,7 +10,7 @@ engine = create_async_engine(
 )
 
 
-class Base(DeclarativeBase):
+class Basic(DeclarativeBase):
     id: Mapped[int] = mapped_column(autoincrement=True, unique=True, primary_key=True, index=True)
 
 
@@ -23,5 +23,5 @@ async_session = async_sessionmaker(
 
 async def init_models():
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Basic.metadata.drop_all)
+        await conn.run_sync(Basic.metadata.create_all)
