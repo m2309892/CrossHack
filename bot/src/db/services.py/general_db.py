@@ -4,6 +4,8 @@ from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from models.models import *
+import db.models.models as model
+import db.schemas as schema
 #import src.schemas.general_schemas as schema
 from .db import Basic
 
@@ -71,7 +73,9 @@ async def get_obj_by_id(session: AsyncSession, table_obj: Basic, obj_id: int, re
     
     if responce_model:
         obj_res = responce_model.model_validate(obj_res, from_attributes=True)
-
+        
+    if obj_res is None:
+        return []
     return obj_res
 
 
@@ -107,3 +111,34 @@ async def check_id_set_by_model(session: AsyncSession, table_obj: Basic, check_i
     )
     model_id_list = model_id_list.scalars().all()
     model_id_list = set(model_id_list)
+    
+    
+    
+#SPECIFIC DB PROC
+async def get_lecture_list_by_user_id(session: AsyncSession, user_id: int): #get запрос для "мои лекции" и для отчетности
+    lecture_list = await session.execute(
+        select(
+            Lectures
+        ).where(
+            Lectures.user_id == user_id
+        )
+    )
+    lecture_list = lecture_list.scalars().all()
+
+    lecture_list = [schema.LectionGet.model_validate(section, from_attributes=True) for section in lecture_list]
+    return lecture_list
+
+
+async def get_lection_list_by_date(session: AsyncSession, date: datetime): #get запрос для "дайджест"
+    lecture_list = await session.execute(
+        select(
+            Lectures
+        ).where(
+            Lectures.day == date or (abs(Lectures.day - date) <= '30:00:00') #тут нужно понять, как проверить, попадает ли лекция в квартал
+        )
+    )
+    lecture_list = lecture_list.scalars().all()
+
+    lecture_list = [schema.LectionGet.model_validate(section, from_attributes=True) for section in lecture_list]
+    return lecture_list
+
