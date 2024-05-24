@@ -20,4 +20,4 @@ def get_data_from_forms(spreadsheet_name):
     return sheet.get_all_records()
 
 # Пример использования
-# print(get_data_from_forms("Заявка на проведение лекции (Ответы)"))
+print(get_data_from_forms("Заявка на проведение лекции (Ответы)"))
