@@ -3,10 +3,10 @@ from telebot import types # для указание типов
 from html.parser import HTMLParser
 from buttons_menu import  menu_inline_admin_keyboard, menu_inline_user_keyboard
 
-TOKEN ='...'
+TOKEN ='6527611965:AAEpstUPFSi4SK1qLkDdsjvTuz7X2CkxpUM'
 
-admins = [...]  # список ID админов
-users = [..., ...]  # список ID сотрудников
+admins = [879863724]  # список ID админов
+users = [318854597, 879863724]  # список ID сотрудников
 urlFormID = ... # ССЫЛКА НА ФОРМУ "ПРОВЕСТИ ЛЕКЦИЮ"
 
 # ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ПРОВЕРЯЕТ АДМИН ТЫ ИЛИ НЕТ
@@ -109,8 +109,6 @@ def handle_message(callback):
     # Если пользователь нажал "Мои лекции"
     if callback.data == 'my_lecture':
 
-        
-    
         markup = types.InlineKeyboardMarkup()
 
         for user_lection in lectures_of_user:
@@ -152,13 +150,42 @@ def handle_message(callback):
         for event in events:
             msg += f"{event['date']} - {event['name']}\n"  # Статус больше не нужен, так как все события будут со статусом "будет"
 
-    bot.send_message(callback.message.chat.id, msg, reply_markup=markup, parse_mode='html')
+        bot.send_message(callback.message.chat.id, msg, reply_markup=markup, parse_mode='html')
 
     # Если пользователь нажал "Отчетность лекций за месяц"
     if callback.data == 'MonthLecRep':
+        
+        # Отправляем запрос на ввод телеграм-username сотрудника
+        msg = bot.send_message(callback.message.chat.id, "Пожалуйста, введите телеграм-username сотрудника:")
+    
+        # Создаем обработчик для ответа пользователя
+        @bot.message_handler(content_types=['text'])
+        def handle_employee_username(message):
+            if message.chat.id == callback.message.chat.id:
+                employee_username = message.text
+            
+                # Имитация базы данных
+                lectures = [
+                    {'employee_username': '@john_doe', 'lecture_name': 'Лекция 1', 'lecture_date': '10.07.2024'},
+                    {'employee_username': '@john_doe', 'lecture_name': 'Лекция 2', 'lecture_date': '15.07.2024'},
+                    {'employee_username': '@jane_smith', 'lecture_name': 'Лекция 3', 'lecture_date': '20.07.2024'}
+                ]   
+            
+                # Фильтруем лекции по введенному телеграм-username сотрудника
+                employee_lectures = [lecture for lecture in lectures if lecture['employee_username'] == employee_username]
+            
+                # Формируем сообщение с отчетностью
+                report_message = "<b>Отчетность лекций за месяц:</b>\n\n"
+                for lecture in employee_lectures:
+                    report_message += f"Название лекции: {lecture['lecture_name']}\nДата проведения: {lecture['lecture_date']}\n\n"
 
-        # какая тут логика?
-        bot.send_message(callback.message.chat.id, "Пожалуйста, введите ФИО сотрудника:")
+                markup = types.InlineKeyboardMarkup()
+                buttonback = types.InlineKeyboardButton("Назад", callback_data='back')
+                markup.add(buttonback)
+
+                # Отправляем сообщение с отчетностью
+                bot.send_message(callback.message.chat.id, report_message, reply_markup=markup, parse_mode='html')
+            
 
     # Если пользователь нажал "Подбор заявок от спикеров/организаторов"
     if callback.data == 'SelecofApplic':
@@ -176,16 +203,16 @@ def handle_message(callback):
     if callback.data == 'createForms':
         enter_name = ''
         # Обработчик для старта процесса создания опроса
-        bot.send_message(callback.message.chat.id, "Для начала введите ваше имя:")
-        bot.register_next_step_handler(callback.message, enter_name)
+        bot.send_message(callback.message.chat.id, "")
+        
 
     
     elif callback.data == 'back':
         
         # УДАЛЯЕМ СООБЩЕНИЕ
-        bot.delete_message(callback.message.chat.id, callback.message.message_id)
+        #bot.delete_message(callback.message.chat.id, callback.message.message_id)
 
-        #handle_back_to_menu(callback.message)
+        handle_back_to_menu(callback.message)
         
 
     # Если пользователь нажал копку "Посмотреть результаты опроса"
