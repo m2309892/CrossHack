@@ -1,6 +1,5 @@
 import random
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.schemas import *
