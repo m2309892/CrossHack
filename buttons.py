@@ -3,10 +3,10 @@ from telebot import types # для указание типов
 from html.parser import HTMLParser
 from buttons_menu import  menu_inline_admin_keyboard, menu_inline_user_keyboard
 
-TOKEN ='...'
+TOKEN ='6527611965:AAEpstUPFSi4SK1qLkDdsjvTuz7X2CkxpUM'
 
-admins = [...]  # список ID админов
-users = [...]  # список ID сотрудников
+admins = [879863724]  # список ID админов
+users = [318854597, 879863724]  # список ID сотрудников
 urlFormID = ... # ССЫЛКА НА ФОРМУ "ПРОВЕСТИ ЛЕКЦИЮ"
 
 # ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ПРОВЕРЯЕТ АДМИН ТЫ ИЛИ НЕТ
@@ -18,6 +18,9 @@ def change_global_var_to_true():
     global global_var
     global_var = True
 
+
+# вместо бд и проверок
+there_is_a_form = True  # ведётся не ведётся набор
 
 bot = telebot.TeleBot(TOKEN) 
 
@@ -82,20 +85,26 @@ def start(message):
 def handle_message(callback):
     # Если пользователь нажал "Провести лекцию"
     if callback.data == 'give_lecture':
+
+        # Переменная, содержащая название месяца (например, "июнь" или "август")
+        month = "июнe"
+
+        # Переменная, содержащая мероприятие (лекция или CrossTalks)
+        CROSSevent = "лекцию"
         
-        # какая тут логика?
-        
+        #   ДОПИСАТЬ ЛОГИКУ, ЕСЛИ ССЫЛКИ НЕТ
         
         markup = types.InlineKeyboardMarkup()
 
-        # ССЫЛКА НА ФОРМУ 
-        # просто для примера оставила тут ссылку на сайт Хабр
-        buttonForm = types.InlineKeyboardButton(text='Провести лекцию', callback_data='urlForm', url= 'https://habr.com/ru/all/')
+         
+        buttonForm = types.InlineKeyboardButton(text='Провести лекцию', callback_data='urlForm')
         button_back = types.InlineKeyboardButton("Назад", callback_data='back')
         markup.add(buttonForm)
         markup.add(button_back)
 
-        bot.send_message(callback.message.chat.id, "Выберите нужное действие:", reply_markup=markup)
+
+        bot.send_message(callback.message.chat.id, "<b>Добрый день, коллеги!</b>\n\nОткрыта запись на <b>{CROSSevent}</b> в {month}\n\nНажимайте на <b>Провести лекцию</b> для получения ссылки на гугл форму".format(CROSSevent=CROSSevent, month=month), reply_markup=markup, parse_mode='html')
+        
 
     # Если пользователь нажал "Мои лекции"
     if callback.data == 'my_lecture':
@@ -141,15 +150,31 @@ def handle_message(callback):
         markup.add(button2)
         markup.add(button_back)
         bot.send_message(callback.message.chat.id, "Выберите нужное действие:", reply_markup=markup)
+
+    # Если пользователь нажал "Создать отпрос"
+    if callback.data == 'createForms':
+        enter_name = ''
+        # Обработчик для старта процесса создания опроса
+        bot.send_message(callback.message.chat.id, "Для начала введите ваше имя:")
+        bot.register_next_step_handler(callback.message, enter_name)
+
     
     elif callback.data == 'back':
-        handle_back_to_menu(callback.message)
+        
+        # УДАЛЯЕМ СООБЩЕНИЕ
+        bot.delete_message(callback.message.chat.id, callback.message.message_id)
+
+        #handle_back_to_menu(callback.message)
         
 
     # Если пользователь нажал копку "Посмотреть результаты опроса"
     elif callback.data == 'resultsForms':
         bot.send_message(callback.message.chat.id, "Список всех действительных опросов:")
 
+    # Если пользователь нажал копку "Провести лекции"
+    elif callback.data == 'urlForm':
+        # присылается ссылка на гугл форму 
+        bot.send_message(callback.message.chat.id, "Отлично! Вот ссылка на <a href='https://forms.gle/u2K5frepjugeZq8j8'>гугл</a>.", parse_mode='HTML')
 
         
 
