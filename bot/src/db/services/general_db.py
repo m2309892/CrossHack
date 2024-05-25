@@ -187,3 +187,16 @@ async def check_user_by_tg(session: AsyncSession, check_tg: str):
     else:
         return True
     
+    
+async def update_user_by_tg(session: AsyncSession, obj_tg: str, data: BaseModel):
+    obj_res = await session.execute(
+        select(
+            Users
+        ).where(
+            Users.tg_username == obj_tg
+        )
+    )
+    obj_res = obj_res.scalar_one_or_none()
+
+    await obj_res.update(**data.model_dump())
+    await session.commit()
