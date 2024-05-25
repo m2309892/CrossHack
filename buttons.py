@@ -20,7 +20,7 @@ def change_global_var_to_true():
 
 
 # вместо бд и проверок
-there_is_a_form = True  # ведётся не ведётся набор
+there_is_a_form = False  # ведётся не ведётся набор
 
 bot = telebot.TeleBot(TOKEN) 
 
@@ -173,8 +173,13 @@ def handle_message(callback):
 
     # Если пользователь нажал копку "Провести лекции"
     elif callback.data == 'urlForm':
-        # присылается ссылка на гугл форму 
-        bot.send_message(callback.message.chat.id, "Отлично! Вот ссылка на <a href='https://forms.gle/u2K5frepjugeZq8j8'>гугл</a>.", parse_mode='HTML')
+        if there_is_a_form:
+            # присылается ссылка на гугл форму 
+            bot.send_message(callback.message.chat.id, "Отлично! Вот ссылка на <a href='https://forms.gle/u2K5frepjugeZq8j8'>гугл</a>.", parse_mode='HTML')
+        else:
+            # присылается грустное сообщение 
+            bot.send_message(callback.message.chat.id, "Запись не ведётся сейчас:(\nСледите за уведомлениями в этом боте, Вам обязательно напишут, когда появится гугл форма", parse_mode='HTML')
+
 
         
 
