@@ -1,12 +1,13 @@
 import telebot
 from telebot import types # для указание типов
+from datetime import datetime
 from html.parser import HTMLParser
 from buttons_menu import  menu_inline_admin_keyboard, menu_inline_user_keyboard
 
-TOKEN ='6527611965:AAEpstUPFSi4SK1qLkDdsjvTuz7X2CkxpUM'
+TOKEN ='...'
 
-admins = [879863724]  # список ID админов
-users = [318854597, 879863724]  # список ID сотрудников
+admins = [...]  # список ID админов
+users = [..., ...]  # список ID сотрудников
 urlFormID = ... # ССЫЛКА НА ФОРМУ "ПРОВЕСТИ ЛЕКЦИЮ"
 
 # ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ПРОВЕРЯЕТ АДМИН ТЫ ИЛИ НЕТ
@@ -24,6 +25,15 @@ there_is_a_form = False  # ведётся не ведётся набор
 
 # название кнопок и название лекций
 lectures_of_user = ["Разработка", "Маркетинг", "Тестирование", "Обучение"]
+
+
+# СОЗДАТЬ ОПРОС
+# Хранилище для данных опроса
+poll_data = {}
+# Список для хранения опросов
+poll_list = []
+
+
 
 
 bot = telebot.TeleBot(TOKEN) 
@@ -201,10 +211,47 @@ def handle_message(callback):
 
     # Если пользователь нажал "Создать отпрос"
     if callback.data == 'createForms':
-        enter_name = ''
-        # Обработчик для старта процесса создания опроса
-        bot.send_message(callback.message.chat.id, "")
-        
+        # Состояния
+        STATE_TITLE, STATE_MESSAGE, STATE_LINK, STATE_SEND_DATE, STATE_DEADLINE = range(5)
+
+        def process_title_step(message):
+            poll_data['title'] = message.text
+            msg = bot.send_message(message.chat.id, "Напишите текст рассылки. Пример: Добрый день коллеги! Открыта запись на лекции в июне!")
+            bot.register_next_step_handler(msg, process_message_step)
+
+        def process_message_step(message):
+            poll_data['message'] = message.text
+            msg = bot.send_message(message.chat.id, "Напишите ссылку на гугл форму.")
+            bot.register_next_step_handler(msg, process_link_step)
+
+        def process_link_step(message):
+            poll_data['link'] = message.text
+            msg = bot.send_message(message.chat.id, "Напишите дату и время рассылки. Пример: 2024-05-25 9:00")
+            bot.register_next_step_handler(msg, process_send_date_step)
+
+        def process_send_date_step(message):
+            poll_data['send_date'] = message.text
+            msg = bot.send_message(message.chat.id, "Напишите дедлайн опроса. Пример: 2024-06-10 18:00")
+            bot.register_next_step_handler(msg, process_deadline_step)
+
+        def process_deadline_step(message):
+            poll_data['deadline'] = message.text
+
+            # Здесь сохраняем данные в список или обрабатываем иначе по логике
+            poll_list.append(poll_data.copy())  # Добавляем в список опросов
+            # Оповещаем пользователя об успешном создании опроса
+            bot.send_message(message.chat.id, "Опрос успешно создан!")
+            # Показываем введенные данные
+            summary = (f"Название опроса: {poll_data['title']}\n"
+                        f"Текст рассылки: {poll_data['message']}\n"
+                        f"Ссылка на гугл форму: {poll_data['link']}\n"
+                        f"Дата и время рассылки: {poll_data['send_date']}\n"
+                        f"Дедлайн опроса: {poll_data['deadline']}")
+            
+            bot.send_message(message.chat.id, summary)
+
+        msg = bot.send_message(callback.message.chat.id, "Пожалуйста, введите название опроса:")
+        bot.register_next_step_handler(msg, process_title_step)
 
     
     elif callback.data == 'back':
