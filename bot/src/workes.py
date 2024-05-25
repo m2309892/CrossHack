@@ -6,12 +6,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.schemas import *
 import src.db.services.general_db as db
 import src.db.models.models as models
-from src.services.api.general_api import *
 
 
-async def create_section(session: AsyncSession, section_data: list[SectionCreate], user_id: int):
-    new_section = await db.create_section(session, section_data, user_id)
-    return new_section
+async def create_lecture(session: AsyncSession, lecture_data: LectureCreate):
+    new_lecture = await db.create_object(session, models.Lectures, lecture_data)
+    return new_lecture
+
+
+async def check_user(session: AsyncSession, user_tg: str):
+    ans = await db.check_user_by_tg(session, user_tg)
+    return ans
+
+
+async def create_mailing(session: AsyncSession, mailing_data: MailingCreate):
+    new_mailing = await db.create_object(session, models.Mailing, mailing_data)
+    return new_mailing
+
+
+async def get_lectures_by_tg(session: AsyncSession, user_tg: str):
+    lectures = await db.get_lecture_list_by_tg_username(session, user_tg)
+    return lectures
+
+
+async def get_digest(session: AsyncSession):
+    today = datetime.today()
+    digest = await db.get_lection_list_by_date(session, today)
+    return digest
+
+
+async def update_lecture(session: AsyncSession, lection_id: int, new_data: )
+
+
+
 
 
 async def get_section_list(session: AsyncSession, id_list: list[int] | None = None):

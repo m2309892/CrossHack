@@ -7,6 +7,7 @@ class Position(str, Enum):
     INTERN = 'Стажер'
     ADMIN = 'Админ'
     EMPLOYEE = 'Сотрудник'
+    FIRED = 'Уволен'
     
 class Status(str, Enum):
     CREATED = 'Создана'
@@ -29,6 +30,12 @@ class MailingCreate(BaseModel):
 class MailingData(MailingCreate):
     id: int
     
+class MailingUpdate(BaseModel):
+    type: MailType | None
+    text: str | None
+    url: str | None
+    date: datetime | None
+    
 #for model LECTURES
 class LectureCreate(BaseModel):
     name: str
@@ -40,6 +47,9 @@ class LectureCreate(BaseModel):
 class LectureData(LectureCreate):
     id: int
     
+class LecturesUpdate(BaseModel):
+    status: Status
+    
 #for model USERS
 class UserCreate(BaseModel):
     tg_username: str
@@ -49,3 +59,7 @@ class UserCreate(BaseModel):
     
 class UserDate(UserCreate):
     user_id: int
+    
+class UserUpdate(BaseModel):
+    position: Position | None
+    tg_username: str | None

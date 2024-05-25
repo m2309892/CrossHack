@@ -74,8 +74,6 @@ async def get_obj_by_id(session: AsyncSession, table_obj: Basic, obj_id: int, re
     if responce_model:
         obj_res = responce_model.model_validate(obj_res, from_attributes=True)
         
-    if obj_res is None:
-        return []
     return obj_res
 
 
@@ -88,6 +86,9 @@ async def update_obj_by_id(session: AsyncSession, table_obj: Basic, obj_id: int,
         )
     )
     obj_res = obj_res.scalar_one_or_none()
+
+    await obj_res.update(**data.model_dump())
+    await session.commit()
 
 
 async def check_id_by_model(session: AsyncSession, table_obj: Basic, check_id: int):
@@ -129,6 +130,20 @@ async def get_lecture_list_by_user_id(session: AsyncSession, user_id: int): #get
     return lecture_list
 
 
+async def get_lecture_list_by_tg_username(session: AsyncSession, tg: str): #get запрос для "мои лекции" и для отчетности
+    lecture_list = await session.execute(
+        select(
+            Lectures
+        ).where(
+            Lectures.tg_username == tg
+        )
+    )
+    lecture_list = lecture_list.scalars().all()
+
+    lecture_list = [schema.LectionGet.model_validate(section, from_attributes=True) for section in lecture_list]
+    return lecture_list
+
+
 async def get_lection_list_by_date(session: AsyncSession, date: datetime): #get запрос для "дайджест"
     lecture_list = await session.execute(
         select(
@@ -142,3 +157,33 @@ async def get_lection_list_by_date(session: AsyncSession, date: datetime): #get 
     lecture_list = [schema.LectionGet.model_validate(section, from_attributes=True) for section in lecture_list]
     return lecture_list
 
+
+async def check_user_by_id(session: AsyncSession, check_id: int):
+    check = await session.execute(
+        select(
+            Users.user_id
+        ).where(
+            Users.user_id == check_id
+        )
+    )
+    check = check.scalar_one_or_none()
+    if check is None:
+        return False
+    else:
+        return True
+
+
+async def check_user_by_tg(session: AsyncSession, check_tg: str):
+    check = await session.execute(
+        select(
+            Users.tg_username
+        ).where(
+            Users.tg_username == check_tg
+        )
+    )
+    check = check.scalar_one_or_none()
+    if check is None:
+        return False
+    else:
+        return True
+    
