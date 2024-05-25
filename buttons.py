@@ -3,10 +3,10 @@ from telebot import types # для указание типов
 from html.parser import HTMLParser
 from buttons_menu import  menu_inline_admin_keyboard, menu_inline_user_keyboard
 
-TOKEN ='6527611965:AAEpstUPFSi4SK1qLkDdsjvTuz7X2CkxpUM'
+TOKEN ='...'
 
-admins = [879863724]  # список ID админов
-users = [318854597, 879863724]  # список ID сотрудников
+admins = [...]  # список ID админов
+users = [..., ...]  # список ID сотрудников
 urlFormID = ... # ССЫЛКА НА ФОРМУ "ПРОВЕСТИ ЛЕКЦИЮ"
 
 # ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ПРОВЕРЯЕТ АДМИН ТЫ ИЛИ НЕТ
@@ -19,8 +19,12 @@ def change_global_var_to_true():
     global_var = True
 
 
-# вместо бд и проверок
+# вместо бд и проверок (ЕСТЬ ЛИ ЛЕКЦИИ)
 there_is_a_form = False  # ведётся не ведётся набор
+
+# название кнопок и название лекций
+lectures_of_user = ["Разработка", "Маркетинг", "Тестирование", "Обучение"]
+
 
 bot = telebot.TeleBot(TOKEN) 
 
@@ -92,11 +96,7 @@ def handle_message(callback):
         # Переменная, содержащая мероприятие (лекция или CrossTalks)
         CROSSevent = "лекцию"
         
-        #   ДОПИСАТЬ ЛОГИКУ, ЕСЛИ ССЫЛКИ НЕТ
-        
         markup = types.InlineKeyboardMarkup()
-
-         
         buttonForm = types.InlineKeyboardButton(text='Провести лекцию', callback_data='urlForm')
         button_back = types.InlineKeyboardButton("Назад", callback_data='back')
         markup.add(buttonForm)
@@ -108,30 +108,51 @@ def handle_message(callback):
 
     # Если пользователь нажал "Мои лекции"
     if callback.data == 'my_lecture':
+
         
-        # какая тут логика?
-        # как сделать список лекций в виде кнопок?
-        
+    
         markup = types.InlineKeyboardMarkup()
+
+        for user_lection in lectures_of_user:
+            button = types.InlineKeyboardButton(
+                f'Лекция "{user_lection}"', callback_data=user_lection
+            )
+            markup.add(button)
+
         button_back = types.InlineKeyboardButton("Назад", callback_data='back')
         markup.add(button_back)
-        bot.send_message(callback.message.chat.id, "<b>Мои лекции.</b>\nВыберите нужное действие:", reply_markup=markup, parse_mode='html')
+
+        bot.send_message(
+            callback.message.chat.id,
+            "Мои лекции.\nВыберите нужное действие:",
+            reply_markup=markup,
+            parse_mode="html",
+        )
 
     # Если пользователь нажал "Дайджест на месяц"
     if callback.data == 'digest_for_week':
-        
-        # какая тут логика?
-        
+    
+        # Условная БД
+        events = [
+            {'date': '10.07.2024', 'status': 'будет', 'name': 'Мероприятие 1'},
+            {'date': '10.08.2024', 'status': 'завершено', 'name': 'Мероприятие 2'}
+        ]
+
+        # Фильтрация мероприятий со статусом "будет"
+        events = [event for event in events if event['status'] == 'будет']
+
+        # Сортировка по дате
+        events = sorted(events, key=lambda x: x['date'])
+
         markup = types.InlineKeyboardMarkup()
-        button_back = types.InlineKeyboardButton("Назад", callback_data='back')
-        # Кнопка сортировки (по дате)
-        butSortDate = types.InlineKeyboardButton("Сортировка по дате", callback_data='back')
-        # Кнопка сортировки (по апруву)
-        butSortApprove  = types.InlineKeyboardButton("Сортировка по одобрению", callback_data='back')
-        markup.add(butSortDate)
-        markup.add(butSortApprove)
-        markup.add(button_back)
-        bot.send_message(callback.message.chat.id, "<b>Дайджест на месяц.</b>\nСписок запланированных лекций:", reply_markup=markup, parse_mode='html')
+        buttonback = types.InlineKeyboardButton("Назад", callback_data='back')
+        markup.add(buttonback)
+    
+        msg = "<b>Мы подготовили дайджест событий на этот месяц:</b>\n\n"
+        for event in events:
+            msg += f"{event['date']} - {event['name']}\n"  # Статус больше не нужен, так как все события будут со статусом "будет"
+
+    bot.send_message(callback.message.chat.id, msg, reply_markup=markup, parse_mode='html')
 
     # Если пользователь нажал "Отчетность лекций за месяц"
     if callback.data == 'MonthLecRep':
@@ -180,6 +201,30 @@ def handle_message(callback):
             # присылается грустное сообщение 
             bot.send_message(callback.message.chat.id, "Запись не ведётся сейчас:(\nСледите за уведомлениями в этом боте, Вам обязательно напишут, когда появится гугл форма", parse_mode='HTML')
 
+    # МОИ ЛЕКЦИИ (Инфа о них)
+    elif callback.data in lectures_of_user:
+            
+        # ТИПА БД
+        lecture_id = 1
+        name = ''
+        day = '10/10/2025'
+        time = '10:00'
+        call_link = 'что-то...'
+        status = 'будет'
+        
+        markup = types.InlineKeyboardMarkup()
+
+        # присылается сообщение с информацией из БД 
+        message = f"ID лекции: {lecture_id}\nНазвание: {name}\nДата: {day}\nВремя: {time}\nСсылка для подключения: {call_link}\nСтатус: {status}"
+        button_back = types.InlineKeyboardButton("Назад", callback_data='back')
+        markup.add(button_back)
+
+        bot.send_message(
+            callback.message.chat.id,
+            message,
+            reply_markup=markup,
+            parse_mode="html",
+        )
 
         
 
