@@ -5,6 +5,7 @@ from html.parser import HTMLParser
 
 from src.db.config import config
 from workes import *
+from src.db.schemas import *
 
 
 TOKEN = config.bot_token
@@ -82,7 +83,7 @@ def menu_inline_user_keyboard():
 @bot.message_handler(func=lambda message: message.text == 'Назад в меню')
 async def handle_back_to_menu(message):
     # ЕСЛИ АДМИН
-    if get_user_by_tg(message.from_user.username) in get_all_admins_filter([message.chat.id, 'Админ']):
+    if check_admin(message.from_user.username):
         markup = menu_inline_admin_keyboard() # создание inline клавиатуры c основным меню
         await bot.send_message(message.chat.id, 'Вы вернулись в главное меню!', reply_markup=markup)
     # ЕСЛИ СОТРУДНИК
@@ -100,7 +101,7 @@ async def start(message):
     # Проверка статуса "Сотрудник" или "Админ" или "Никто" 
     # Если "Админ"
     # Админ должен быть в обоих бд, тк он и сотрудник и админ:
-    if get_user_by_tg(message.from_user.username) in get_all_admins_filter([message.chat.id, 'Админ']): #check admin
+    if check_admin(username): #check admin
         
         '''# Вызов функции для изменения значения переменной
         change_global_var_to_true()'''
@@ -134,7 +135,7 @@ async def start(message):
 
 # обработчики кнопок
 @bot.callback_query_handler(func=lambda message: True)
-async def handle_message(callback):
+async def handle_message(callback): #помогите с логикой тут уже, написала функи, дергающие мэйлинги по фильтрам
     user_id = message.chat.id
     first_name = message.from_user.first_name
     username = message.from_user.username
@@ -146,9 +147,12 @@ async def handle_message(callback):
 
         # Переменная, содержащая мероприятие (лекция или CrossTalks)
         CROSSevent = "лекцию"'''
-        mailing_lecture = get_all_mailings_filter(['Активен', 'Лекция']) 
-        mailing_crosstalks = get_all_mailings_filter(['Активен', 'CrossTalks']) #я не ебу, что по модели пайдантика тут указывать, честно, затвра спрошу у шарящих людей, это какой-то пиздец
-        
+        mailing_lecture_list = get_mailing_filter(StatusMailing('Активен'), MailType('Лекция'))
+        if len(mailing_lecture_list) == 1:
+            CROSSevent = mailing_lecture_list[0].text
+        mailing_crosstalks_list = get_mailing_filter(StatusMailing('Активен'), MailType('CrossTalks')) #я не ебу, что по модели пайдантика тут указывать, честно, затвра спрошу у шарящих людей, это какой-то пиздец
+        if len(mailing_crosstalks_list) == 1:
+            CROSSevent = mailing_lecture_list[0].text
         
         markup = types.InlineKeyboardMarkup()
         buttonLecture = types.InlineKeyboardButton(text='Провести лекцию', callback_data='urlForm') #get_current_mailing + проверка статуса
@@ -192,7 +196,7 @@ async def handle_message(callback):
     if callback.data == 'digest_for_week':
     
         # Условная БД -- неусловный метод get_digest
-        events = get_all_lectures(['Одобрена'])
+        events = get_all_lectures(StatusLecture('Одобрена'))
 
         # Фильтрация мероприятий со статусом "будет"   ДВЕ ФИЛЬТРАЦИИ ПО ДАТЕ И ПО СТАТУСУ
         #events = [event for event in events if event['status'] == 'будет']
@@ -236,7 +240,7 @@ async def handle_message(callback):
                 # Формируем сообщение с отчетностью
                 report_message = "<b>Отчетность лекций за месяц:</b>\n\n"
                 for lecture in employee_lectures:
-                    report_message += f"Название лекции: {lecture['lecture_name']}\nДата проведения: {lecture['lecture_date']}\n\n"
+                    report_message += f"Название лекции: {lecture.lecture_name}\nДата проведения: {lecture.lecture_date}\n\n"
 
                 markup = types.InlineKeyboardMarkup()
                 buttonback = types.InlineKeyboardButton("Назад", callback_data='back')
@@ -320,7 +324,7 @@ async def handle_message(callback):
 
     # Если пользователь нажал копку "Провести лекции"
     elif callback.data == 'urlForm':
-        if there_is_a_form: #check status mailings
+        if : #check status mailings
             # присылается ссылка на гугл форму 
             await bot.send_message(callback.message.chat.id, "Отлично! Вот ссылка на <a href='https://forms.gle/u2K5frepjugeZq8j8'>гугл</a>.", parse_mode='HTML')
         else:

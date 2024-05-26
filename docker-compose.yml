@@ -11,13 +11,3 @@ services:
       - ./db-data:/var/lib/postgresql/data
     ports:
       - 5432:5432
-
-  tg-bot:
-    container_name: tg-bot
-    restart: unless-stopped
-    env_file: ./.env
-    command: python3 main.py
-    build:
-      context: bot
-    depends_on:
-      - db

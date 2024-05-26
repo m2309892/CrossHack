@@ -188,6 +188,8 @@ async def check_user_by_tg(session: AsyncSession, check_tg: str):
         )
     )
     check = check.scalar_one_or_none()
+    if check is not None:
+        check = schema.UserData.model_validate(check)
     return check
     
     
@@ -204,8 +206,51 @@ async def update_user_by_tg(session: AsyncSession, obj_tg: str, data: BaseModel)
     await obj_res.update(**data.model_dump())
     await session.commit()
     
+
+async def check_admin_by_tg_username(session: AsyncSession, tg: str): #get запрос для "мои лекции" и для отчетности
+    user_status = await session.execute(
+        select(
+            Users
+        ).where(
+            Users.tg_username == tg and (Users.posotion == Position('Админ'))
+        )
+    )
+    user_status = user_status.scalar_one_or_none()
+
+    user_status = schema.UserData.model_validate(from_attributes=True) 
+    return user_status
+
+
+async def get_mailing_by_status_and_type(session: AsyncSession, type_data: MailType | MailType = None, status_data: StatusMailing| StatusMailing = None):
+    list_mailings = await session.execute(
+        select(
+            Mailing
+        ).where(
+            Mailing.type == type_data and Mailing.status == status_data
+        )
+    )
+    list_mailings = list_mailings.scalars().all()
+
+    list_mailings = [schema.MailingData.model_validate(el, from_attributes=True) for el in list_mailings]
+    return list_mailings
+
+
+async def get_lecture_by_status_and_date(session: AsyncSession, status_data: StatusLecture | StatusLecture = None, date_data: datetime = datetime.today()):
+    list_lectures = await session.execute(
+        select(
+            Lectures
+        ).where(
+            Lectures.status == status_data and Lectures.date == date_data #функа нужна очень
+        )
+    )
+    list_lectures = list_lectures.scalars().all()
+
+    list_lectures = [schema.MailingData.model_validate(el, from_attributes=True) for el in list_lectures]
+    return list_lectures
     
-async def get_object(
+    
+    
+'''async def get_object(
         table_obj: Basic,
         session: AsyncSession,
         expression: ColumnElement[bool] | _HasClauseElement[bool] | SQLCoreOperations[bool],
@@ -222,10 +267,12 @@ async def get_object(
             query = query.options(options)
 
     result = await session.execute(query)
-    _obj = result.scalar_one_or_none()
+    _obj = result.scalars().all()
 
     if _obj is None:
         return _obj
+    
+    _obj = [model_schema.model_validate(el, from_attributes=True) for el in _obj]
 
-    return model_schema.model_validate(_obj, from_attributes=True)
+    return _obj'''
 
