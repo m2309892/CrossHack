@@ -6,7 +6,7 @@ services:
     container_name: db
     restart: unless-stopped
     image: postgres:latest
-    env_file: ./bot/src/db.env
+    env_file: ./db.env
     volumes:
       - ./db-data:/var/lib/postgresql/data
     ports:

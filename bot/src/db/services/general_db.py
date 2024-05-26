@@ -2,12 +2,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
+from typing import Type, Any, Iterable
+
+from sqlalchemy.sql._typing import _HasClauseElement
+from sqlalchemy.sql.base import ExecutableOption
+from sqlalchemy.sql.elements import SQLCoreOperations
 
 from models.models import *
 import db.models.models as model
 import db.schemas as schema
 #import src.schemas.general_schemas as schema
 from .db import Basic
+from sqlalchemy import ColumnElement
 
 
 async def create_object(session: AsyncSession, table_obj: Basic, data: list[BaseModel], responce_model: BaseModel | None = None):
@@ -182,10 +188,7 @@ async def check_user_by_tg(session: AsyncSession, check_tg: str):
         )
     )
     check = check.scalar_one_or_none()
-    if check is None:
-        return False
-    else:
-        return True
+    return check
     
     
 async def update_user_by_tg(session: AsyncSession, obj_tg: str, data: BaseModel):
@@ -200,3 +203,29 @@ async def update_user_by_tg(session: AsyncSession, obj_tg: str, data: BaseModel)
 
     await obj_res.update(**data.model_dump())
     await session.commit()
+    
+    
+async def get_object(
+        table_obj: Basic,
+        session: AsyncSession,
+        expression: ColumnElement[bool] | _HasClauseElement[bool] | SQLCoreOperations[bool],
+        model_schema: Type[BaseModel],
+        options: Iterable[ExecutableOption] | ExecutableOption = None
+):
+    query = select(Basic).where(expression)
+
+    if options:
+        if isinstance(options, Iterable):
+            for option in options:
+                query = query.options(option)
+        else:
+            query = query.options(options)
+
+    result = await session.execute(query)
+    _obj = result.scalar_one_or_none()
+
+    if _obj is None:
+        return _obj
+
+    return model_schema.model_validate(_obj, from_attributes=True)
+
