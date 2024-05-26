@@ -60,6 +60,17 @@ def get_subscribers():
     session.close()
     return subscribers
 
+def get_active_mailings():
+    session = Session()
+    active_lectures = [
+        {
+            "text":mailing.text,
+            "url":mailing.survey_url,
+        }
+        for mailing in session.query(Mailing).all() if mailing.status == 'Активна'
+    ]  
+    session.close()
+    return active_lectures
 
 def add_new_mailing(session, type, text, survey_url, date, status, admin_name, deadline):
     # Create a new Mailing instance
@@ -129,6 +140,7 @@ def get_subscribers_id():
         if subscriber['tg_id']:
             subscribers_with_id.append(subscriber['tg_id'])
     return subscribers_with_id
+
 def get_subscribers_username():
     subscribers_with_id = []
     for subscriber in get_subscribers():

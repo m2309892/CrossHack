@@ -6,9 +6,10 @@ import time
 import logging
 from html.parser import HTMLParser
 from sqlalchemy_engine import Session
-from workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status
+from workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status, get_active_mailings
 from converters import convert_date, convert_duration
 import threading
+from main_menu_buttons import menu_inline_admin_keyboard, menu_inline_user_keyboard
 
 API_TOKEN = '5471218632:AAFD0hHTx95SRkycWK88QQurUA96LAahbfU'
 bot = telebot.TeleBot(API_TOKEN)
@@ -18,6 +19,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+admin_creating_survey = {}
 # Отправка всем, кто имеет доступ к боту
 def send_notifications(message):
     for user in get_subscribers_id():
@@ -78,15 +80,10 @@ def send_welcome(message):
         if username in subscribers_usernames:
             if user_id not in subscribers_ids:
                 update_user_id(username, user_id)
-        markup = types.InlineKeyboardMarkup()
-        button1 = types.InlineKeyboardButton("Провести лекцию", callback_data='give_lecture')
-        button3 = types.InlineKeyboardButton("Дайджест на месяц", callback_data='digest_for_week')
-        markup.add(button1)
-        markup.add(button3)
+        markup = menu_inline_user_keyboard()
         if check_if_admin(user_id):
             logging.info(f'{username} - админ')
-            button5 = types.InlineKeyboardButton("Создать опрос", callback_data='create_survey')
-            markup.add(button5)
+            markup = menu_inline_admin_keyboard()
         else: 
             logging.info(f'{username} - обычный пользователь')
         bot.send_message(message.chat.id, f'<b>Привет, {first_name}!</b>\nЯ чат-бот для образовательных мероприятий компании. Предоставляю сотрудникам возможность получать  уведомления о готовящихся лекциях и Crosstalks. Помогу быть в курсе актуальных событий и планировать свое участие заранее. Для дальнейших действий - нажимай на нужную кнопку!)'.format(message.from_user), reply_markup=markup, parse_mode='html')
@@ -94,10 +91,22 @@ def send_welcome(message):
         bot.send_message(message.chat.id, f'Нет доступа')
         logging.info(f'{username} пробует зайти в бот')
 
+@bot.message_handler(func=lambda message: message.text == 'Назад в меню')
+def handle_back_to_menu(message):
+    user_id = message.chat.id
+    # ЕСЛИ АДМИН
+    if check_if_admin(user_id):
+        markup = menu_inline_admin_keyboard() # создание inline клавиатуры c основным меню
+        bot.send_message(message.chat.id, 'Вы вернулись в главное меню!', reply_markup=markup)
+    # ЕСЛИ СОТРУДНИК
+    else:
+        markup = menu_inline_user_keyboard() # создание inline клавиатуры c основным меню
+        bot.send_message(message.chat.id, 'Вы вернулись в главное меню!', reply_markup=markup)
+
 # обрабатываем кнопки
 @bot.callback_query_handler(func=lambda message: True)
 def handle_message(callback):
-    # Если пользователь нажал "Подбор заявок от спикеров/организаторов"
+    # Если пользователь нажал "Создать опрос"
     if callback.data == 'create_survey':
         # создается новая менюшка
         markup = types.InlineKeyboardMarkup()
@@ -111,8 +120,11 @@ def handle_message(callback):
     if callback.data == 'createForms':
         user_id = callback.from_user.id
         if check_if_admin(user_id):
+            if user_id in admin_creating_survey:
+                bot.send_message(callback.message.chat.id, 'Вы уже создаете опрос. Пожалуйста, завершите текущий процесс перед созданием нового опроса.')
+                return
+            admin_creating_survey[user_id] = True
             poll_data = {}
-
             def process_title_step(message):
                 poll_data['title'] = message.text
                 msg = bot.send_message(message.chat.id, "Напишите текст рассылки (ссылка на форму указывается потом). Пример:\nДобрый день коллеги!\nОткрыта запись на лекции в июне!")
@@ -160,6 +172,35 @@ def handle_message(callback):
             process_title_step(fake_message)
         else:
             bot.send_message(callback.message.chat.id, 'Вы больше не админ ДОСТУП ЗАПРЕЩЁН')
+    # Если пользователь нажал провести лекцию
+    if callback.data == 'give_lecture':
+        if get_active_mailings():
+            markup = types.InlineKeyboardMarkup()
+            buttonForm = types.InlineKeyboardButton(text='Посмотреть гугл формы', callback_data='give_actual_mailings')
+            button_back = types.InlineKeyboardButton("Назад", callback_data='back')
+            markup.add(buttonForm)
+            markup.add(button_back)
+            bot.send_message(callback.message.chat.id, 'Сейчас выдётся набор напроведение лекций/участие в CrossTalks:', reply_markup=markup)
+        else: 
+            bot.send_message(callback.message.chat.id, 'На данный момент нет набора ни на лекции, ни на CrossTalks')
+
+    if callback.data == 'give_actual_mailings':
+        message_with_mailings = "Сейчас доступны следующие гугл формы:"
+        print(get_active_mailings())
+        for mailing in get_active_mailings():
+            message_with_mailings+=f"\n{mailing['text']}\n{mailing['url']}"
+            print(message_with_mailings)
+        print(message_with_mailings)
+        bot.send_message(callback.message.chat.id, message_with_mailings)
+    elif callback.data == 'back':
+        
+        # УДАЛЯЕМ СООБЩЕНИЕ
+        #bot.delete_message(callback.message.chat.id, callback.message.message_id)
+
+        handle_back_to_menu(callback.message)
+
+
+        
 
 # Function to periodically check for changes in the database and update notifications
 def update_notifications_periodically():
