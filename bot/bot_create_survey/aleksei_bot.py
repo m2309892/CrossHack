@@ -1,13 +1,14 @@
 import telebot
 import datetime
-from telebot import types # для указание типов
+from telebot import types
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import logging
 from html.parser import HTMLParser
-from sqlalchemy_engine import Mailing, Session
-from workers import get_mailings, add_new_mailing
+from sqlalchemy_engine import Session
+from workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status
 from converters import convert_date, convert_duration
+import threading
 
 API_TOKEN = '5471218632:AAFD0hHTx95SRkycWK88QQurUA96LAahbfU'
 bot = telebot.TeleBot(API_TOKEN)
@@ -17,58 +18,87 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# кто подписан на рассылку
-subscribers = [318854597,]
-
-# Отправка всем подписчикам из subscribers
+# Отправка всем, кто имеет доступ к боту
 def send_notifications(message):
-    for user in subscribers:
+    for user in get_subscribers_id():
+        print(get_subscribers_id())
         try:
             bot.send_message(user, message, parse_mode='HTML')
             logging.info(f"Отправлено уведомление {user}: {message}")
         except Exception as e:
             logging.error(f"Не отправлено уведомление {user}: {e}")
 
-# Планировать уведомления про опросы
+# Планировать уведомления про опросы (опрос = сообщение с приглашением пройти гугл форму)
 def schedule_notify_forms():
+    logging.info("Планирутся опросы...")
     for entry in get_mailings():
         notify_time = datetime.datetime.strptime(entry['date'], '%d.%m.%Y %H:%M:%S')
         # проверка, что надо запланировать уведомление 
         if notify_time > datetime.datetime.now():
             scheduler.add_job(send_notifications, 'date', run_date=notify_time, args=[f"{entry['text']}\nСсылка на <a href='{entry['url']}'>гугл форму</a>"])
-            logging.info(f"Запланировано уведомление {entry['mailing_id']} for {notify_time}")
+            logging.info(f"Запланировано уведомление для опроса на {notify_time}")
 
-# Планируем по тем формам, что изначально есть в БД
-schedule_notify_forms()
+# Планировать уведомления про лекции
+def schedule_notify_lectures():
+    logging.info("Планирутся лекции...")
+    for lecture in get_lectures():
+        status = (lecture['status'])
+        if status == 'Запланирована':
+            lecture_start = datetime.datetime.strptime(lecture['date'], '%d.%m.%Y %H:%M:%S')
+            lecture_end = lecture_start + convert_duration(lecture['duration'])
+            lecture_start_str = lecture_start.strftime('%d.%m c %H:%M до ')
+            lecture_end_str = lecture_end.strftime('%H:%M')
+            lecture_period = f'{lecture_start_str}{lecture_end_str}'
 
-# команда старт
+            # проверка, что надо запланировать уведомление 
+            if lecture_start > datetime.datetime.now():
+                notification = f"О запланированной лекции!\n🗓️ <a href='{lecture['calendar_url']}'>{lecture_period}</a> пройдёт лекция <b>{lecture['lecture_name']}</b>\n{lecture['lecture_description']}\n\n🥸 Лекционную часть проведёт {lecture['tg_username']}\n📍 Лекция проводится {lecture['location']}, ссылка на google meet: {lecture['conference_url']}\nМатериалы будут доступны после мини-лекции <a href='{lecture['lecture_materials_url']}'>ВОТ ТУТ</a>\n{lecture['tags']}"
+                notification_times = [
+                    lecture_start - datetime.timedelta(days=7),
+                    lecture_start - datetime.timedelta(days=3),
+                    lecture_start.replace(hour=9, minute=0, second=0, microsecond=0),
+                    lecture_start - datetime.timedelta(minutes=5)
+                ]
+                count_notifications = 0
+                for notify_time in notification_times:
+                    if notify_time > datetime.datetime.now():
+                        scheduler.add_job(send_notifications, 'date', run_date=notify_time, args=[notification])
+                        count_notifications+=1
+                logging.info(f"Созданы уведомления ({count_notifications}) для лекции {lecture['lecture_name']}")
+
+# команда /старт
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "Добро пожаловать. Вы получаете рассылку.")
     user_id = message.chat.id
     first_name = message.from_user.first_name
-    username = message.from_user.username
-    markup = types.InlineKeyboardMarkup()
-    button1 = types.InlineKeyboardButton("Провести лекцию", callback_data='give_lecture')
-    #button2 = types.InlineKeyboardButton("Мои лекции", callback_data='my_lecture')
-    button3 = types.InlineKeyboardButton("Дайджест на месяц", callback_data='digest_for_week')
-    #button4 = types.InlineKeyboardButton("Отчётность лекций за месяц", callback_data='MonthLecRep')
-    button5 = types.InlineKeyboardButton("Создать опрос", callback_data='SelecofApplic')
-    markup.add(button1)
-    #markup.add(button2)
-    markup.add(button3)
-    #markup.add(button4)
-    markup.add(button5)
-    bot.send_message(message.chat.id, '<b>Привет, {0.first_name}!</b> Я чат-бот для образовательных мероприятий компании. Предоставляю сотрудникам возможность получать  уведомления о готовящихся лекциях и Crosstalks. Помогу быть в курсе актуальных событий и планировать свое участие заранее. Для дальнейших действий - нажимай на нужную кнопку!)'.format(message.from_user), reply_markup=markup, parse_mode='html')
-    if user_id not in subscribers:
-        subscribers.append(user_id)
-        logging.info(f"Новый подписчик: UserID={user_id}, FirstName={first_name}, Username={username}")
-        print(subscribers)
+    username = f"@{message.from_user.username}"
+    if check_if_has_access(user_id,username):
+        subscribers_ids = [user['tg_id'] for user in get_subscribers()]
+        subscribers_usernames =  [user['tg_username'] for user in get_subscribers()]
+        if username in subscribers_usernames:
+            if user_id not in subscribers_ids:
+                update_user_id(username, user_id)
+        markup = types.InlineKeyboardMarkup()
+        button1 = types.InlineKeyboardButton("Провести лекцию", callback_data='give_lecture')
+        button3 = types.InlineKeyboardButton("Дайджест на месяц", callback_data='digest_for_week')
+        markup.add(button1)
+        markup.add(button3)
+        if check_if_admin(user_id):
+            logging.info(f'{username} - админ')
+            button5 = types.InlineKeyboardButton("Создать опрос", callback_data='create_survey')
+            markup.add(button5)
+        else: 
+            logging.info(f'{username} - обычный пользователь')
+        bot.send_message(message.chat.id, f'<b>Привет, {first_name}!</b>\nЯ чат-бот для образовательных мероприятий компании. Предоставляю сотрудникам возможность получать  уведомления о готовящихся лекциях и Crosstalks. Помогу быть в курсе актуальных событий и планировать свое участие заранее. Для дальнейших действий - нажимай на нужную кнопку!)'.format(message.from_user), reply_markup=markup, parse_mode='html')
+    else:
+        bot.send_message(message.chat.id, f'Нет доступа')
+        logging.info(f'{username} пробует зайти в бот')
 
+# обрабатываем кнопки
 @bot.callback_query_handler(func=lambda message: True)
 def handle_message(callback):
     # Если пользователь нажал "Подбор заявок от спикеров/организаторов"
-    if callback.data == 'SelecofApplic':
+    if callback.data == 'create_survey':
         # создается новая менюшка
         markup = types.InlineKeyboardMarkup()
         button1 = types.InlineKeyboardButton("Создать опрос", callback_data='createForms')
@@ -79,59 +109,77 @@ def handle_message(callback):
 
     # Если пользователь нажал "Создать опрос"
     if callback.data == 'createForms':
-        poll_data = {}
+        user_id = callback.from_user.id
+        if check_if_admin(user_id):
+            poll_data = {}
 
-        def process_title_step(message):
-            poll_data['title'] = message.text
-            msg = bot.send_message(message.chat.id, "Напишите текст рассылки (ссылка на форму указывается потом). Пример:\n Добрый день коллеги!\nОткрыта запись на лекции в июне!")
-            bot.register_next_step_handler(msg, process_message_step)
+            def process_title_step(message):
+                poll_data['title'] = message.text
+                msg = bot.send_message(message.chat.id, "Напишите текст рассылки (ссылка на форму указывается потом). Пример:\nДобрый день коллеги!\nОткрыта запись на лекции в июне!")
+                bot.register_next_step_handler(msg, process_message_step)
 
-        def process_message_step(message):
-            poll_data['message'] = message.text
-            msg = bot.send_message(message.chat.id, "Напишите ссылку на гугл форму.")
-            bot.register_next_step_handler(msg, process_link_step)
+            def process_message_step(message):
+                poll_data['message'] = message.text
+                msg = bot.send_message(message.chat.id, "Напишите ссылку на гугл форму.")
+                bot.register_next_step_handler(msg, process_link_step)
 
-        def process_link_step(message):
-            poll_data['link'] = message.text
-            msg = bot.send_message(message.chat.id, "Напишите дату и время рассылки. Пример:\n20.06.2024 14:00:00")
-            bot.register_next_step_handler(msg, process_send_date_step)
+            def process_link_step(message):
+                poll_data['link'] = message.text
+                msg = bot.send_message(message.chat.id, "Напишите дату и время рассылки. Пример:\n20.06.2024 14:00:00")
+                bot.register_next_step_handler(msg, process_send_date_step)
 
-        def process_send_date_step(message):
-            poll_data['send_date'] = message.text
-            msg = bot.send_message(message.chat.id, "Напишите дедлайн опроса. Пример:\n20.06.2024 14:00:00")
-            bot.register_next_step_handler(msg, process_deadline_step)
+            def process_send_date_step(message):
+                poll_data['send_date'] = message.text
+                msg = bot.send_message(message.chat.id, "Напишите дедлайн опроса. Пример:\n20.06.2024 14:00:00")
+                bot.register_next_step_handler(msg, process_deadline_step)
 
-        def process_deadline_step(message):
-            poll_data['deadline'] = message.text
-            # Оповещаем пользователя об успешном создании опроса
-            bot.send_message(message.chat.id, "Опрос успешно создан!")
-            # Показываем введенные данные
-            summary = (f"Текст рассылки: {poll_data['message']}\n"
-                    f"Ссылка на гугл форму: {poll_data['link']}\n"
-                    f"Дата и время рассылки: {poll_data['send_date']}\n"
-                    f"Дедлайн опроса: {poll_data['deadline']}")
-            bot.send_message(message.chat.id, summary)
+            def process_deadline_step(message):
+                poll_data['deadline'] = message.text
+                # Показываем введенные данные
+                summary = (f"Текст рассылки: {poll_data['message']}\n"
+                        f"Ссылка на гугл форму: {poll_data['link']}\n"
+                        f"Дата и время рассылки: {poll_data['send_date']}\n"
+                        f"Дедлайн опроса: {poll_data['deadline']}")
+                bot.send_message(message.chat.id, summary)
 
-            session = Session()
-            type = 'Лекция'
-            text=poll_data['message']
-            survey_url=poll_data['link']
-            date= datetime.datetime.strptime(poll_data['send_date'], '%d.%m.%Y %H:%M:%S')
-            status = 'Неактивна'
-            admin_name = f'@{message.from_user.username}'
-            print(session, type, text, survey_url, date, status, admin_name)
-            add_new_mailing(session, type, text, survey_url, date, status, admin_name)
-            # заново планируем уведомления
-            schedule_notify_forms()
+                session = Session()
+                type = 'Лекция'
+                text=poll_data['message']
+                survey_url=poll_data['link']
+                date= datetime.datetime.strptime(poll_data['send_date'], '%d.%m.%Y %H:%M:%S')
+                deadline = datetime.datetime.strptime(poll_data['deadline'], '%d.%m.%Y %H:%M:%S')
+                print(date, deadline, convert_date(poll_data['send_date']), convert_date(poll_data['deadline']))
+                status = 'Неактивна'
+                admin_name = f'@{message.from_user.username}'
+                add_new_mailing(session, type, text, survey_url, date, status, admin_name, deadline)
+                # заново планируем уведомления
+                schedule_notify_forms()
 
-        fake_message = callback.message 
-        fake_message.text = ""
-        process_title_step(fake_message)
+            fake_message = callback.message 
+            fake_message.text = ""
+            process_title_step(fake_message)
+        else:
+            bot.send_message(callback.message.chat.id, 'Вы больше не админ ДОСТУП ЗАПРЕЩЁН')
 
-# Start polling
+# Function to periodically check for changes in the database and update notifications
+def update_notifications_periodically():
+    while True:
+        scheduler.remove_all_jobs()
+        schedule_notify_forms()
+        schedule_notify_lectures()
+        add_lectures_from_sheets("Заявка на проведение лекции (Ответы)")
+        check_mailing_status()
+        time.sleep(30)
+
+# Start a separate thread to run the periodic checking function
+update_thread = threading.Thread(target=update_notifications_periodically)
+update_thread.daemon = True  # Set the thread as a daemon so it automatically exits when the main program exits
+update_thread.start()
+
+# Bot polling loop (main program)
 while True:
     try:
         bot.polling()
     except Exception as e:
         logging.error(f"Polling error: {e}")
-        time.sleep(15)  # Sleep to avoid polling failure issues ??
+        time.sleep(15)  # Sleep to avoid polling failure issues

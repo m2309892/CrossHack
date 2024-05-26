@@ -1,2 +1,2 @@
-from workers import add_lectures_from_sheets
-add_lectures_from_sheets("Заявка на проведение лекции (Ответы)")
+from workers import check_mailing_status
+check_mailing_status()

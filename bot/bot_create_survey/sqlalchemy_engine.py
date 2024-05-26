@@ -24,6 +24,7 @@ class User(Base):
     tg_chat_id = Column(BigInteger)
     name = Column(String(255))
     position = Column(String(50))
+    status_user = Column(String(255))
 
 class Lecture(Base):
     __tablename__ = 'lectures'
@@ -34,12 +35,14 @@ class Lecture(Base):
     date = Column(DateTime)
     duration = Column(String(50))
     additional_info = Column(Text)
-    tg_username = Column(String(255), ForeignKey('users.tg_username'))
+    tg_username = Column(String(255))
     feedback_url = Column(String(255))
     conference_url = Column(String(255))
     lecture_materials_url = Column(String(255))
     status = Column(String(50))
     time_in_sheet = Column(DateTime)
+    tags = Column(String(255))
+    calendar_url = Column(String(255))
 
 class Mailing(Base):
     __tablename__ = 'mailings'
@@ -49,6 +52,7 @@ class Mailing(Base):
     survey_url = Column(String(255))
     date = Column(DateTime)
     status = Column(String(50))
-    admin_name = Column(String(255), ForeignKey('users.tg_username'))
+    admin_name = Column(String(255))
+    deadline=Column(DateTime)
 
 Session = sessionmaker(bind=engine)
