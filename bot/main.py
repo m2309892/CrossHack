@@ -6,7 +6,7 @@ import time
 import logging
 from html.parser import HTMLParser
 from db.models import Session
-from db.workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status, get_active_mailings
+from db.workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status, get_active_mailings, get_lectures_of_month
 from utils.converters import convert_date, convert_duration
 import threading
 from utils.main_menu_buttons import menu_inline_admin_keyboard, menu_inline_user_keyboard
@@ -56,6 +56,7 @@ def schedule_notify_lectures():
             # проверка, что надо запланировать уведомление 
             if lecture_start > datetime.datetime.now():
                 notification = f"О запланированной лекции!\n🗓️ <a href='{lecture['calendar_url']}'>{lecture_period}</a> пройдёт лекция <b>{lecture['lecture_name']}</b>\n{lecture['lecture_description']}\n\n🥸 Лекционную часть проведёт {lecture['tg_username']}\n📍 Лекция проводится {lecture['location']}, ссылка на google meet: {lecture['conference_url']}\nМатериалы будут доступны после мини-лекции <a href='{lecture['lecture_materials_url']}'>ВОТ ТУТ</a>\n{lecture['tags']}"
+                ask_to_rate = f"Поделитесь мнением о лекции<b> {lecture['lecture_name']}</b>\n<a href='{lecture['feedback_url']}'>ОЦЕНИТЕ В ГУГЛ ФОРМЕ</a>\n\nЛекцию провёл {lecture['tg_username']}\nМатериалы будут доступны в ближайшие сутки <a href='{lecture['lecture_materials_url']}'>ВОТ ТУТ</a>\n{lecture['tags']}"
                 notification_times = [
                     lecture_start - datetime.timedelta(days=7),
                     lecture_start - datetime.timedelta(days=3),
@@ -67,6 +68,7 @@ def schedule_notify_lectures():
                     if notify_time > datetime.datetime.now():
                         scheduler.add_job(send_notifications, 'date', run_date=notify_time, args=[notification])
                         count_notifications+=1
+                scheduler.add_job(send_notifications, 'date', run_date=lecture_end, args=[ask_to_rate])
                 logging.info(f"Созданы уведомления ({count_notifications}) для лекции {lecture['lecture_name']}")
 
 # команда /старт
@@ -193,6 +195,20 @@ def handle_message(callback):
             print(message_with_mailings)
         print(message_with_mailings)
         bot.send_message(callback.message.chat.id, message_with_mailings)
+                         
+    # Если пользователь нажал дайджест на месяц
+    if callback.data == 'digest_for_month':
+        message_with_lectures = "В текущем месяце будут следующие лекции:"
+        
+        for lecture in get_lectures_of_month():
+            lecture_start = datetime.datetime.strptime(lecture['date'], '%d.%m.%Y %H:%M:%S')
+            lecture_end = lecture_start + convert_duration(lecture['duration'])
+            lecture_start_str = lecture_start.strftime('%d.%m c %H:%M до ')
+            lecture_end_str = lecture_end.strftime('%H:%M')
+            lecture_period = f'{lecture_start_str}{lecture_end_str}'
+            message_with_lectures+=f'\nЛекция <b>{lecture["lecture_name"]}</b> {lecture_period}'
+        bot.send_message(callback.message.chat.id, message_with_lectures, parse_mode='HTML')
+
     elif callback.data == 'back':
         
         # УДАЛЯЕМ СООБЩЕНИЕ
@@ -213,10 +229,12 @@ def update_notifications_periodically():
         check_mailing_status()
         time.sleep(30)
 
+
 # Start a separate thread to run the periodic checking function
 update_thread = threading.Thread(target=update_notifications_periodically)
 update_thread.daemon = True  # Set the thread as a daemon so it automatically exits when the main program exits
 update_thread.start()
+
 
 # Bot polling loop (main program)
 while True:

@@ -1,7 +1,7 @@
 from db.models import Mailing, Lecture, Session, User
 from form_api.get_data_from_form import get_data_from_forms
 import datetime
-from sqlalchemy import update
+from sqlalchemy import update, extract
 import logging
 
 # запрос данных из БД
@@ -20,6 +20,7 @@ def get_mailings():
     ]
     session.close()
     return notifications_data
+
 
 def get_lectures():
     session = Session()
@@ -45,6 +46,7 @@ def get_lectures():
     ]
     session.close()
     return lectures_data
+
 
 """def get_lectures_for_month(month):
     session = Session()
@@ -76,6 +78,7 @@ def get_lectures():
     session.close()
     return lectures_data_monthly"""
 
+
 def get_subscribers():
     session = Session()
     subscribers = [
@@ -90,6 +93,7 @@ def get_subscribers():
     session.close()
     return subscribers
 
+
 def get_active_mailings():
     session = Session()
     active_lectures = [
@@ -101,6 +105,7 @@ def get_active_mailings():
     ]  
     session.close()
     return active_lectures
+
 
 def add_new_mailing(session, type, text, survey_url, date, status, admin_name, deadline):
     # Create a new Mailing instance
@@ -118,6 +123,7 @@ def add_new_mailing(session, type, text, survey_url, date, status, admin_name, d
     # Commit the transaction
     session.commit()
     logging.info(f"Добавлена новая рассылка на {date}")
+
 
 def add_or_update_lecture(session, data):
 
@@ -149,12 +155,14 @@ def add_or_update_lecture(session, data):
     
     session.commit()
 
+
 def add_lectures_from_sheets(spreadsheet_name):
     session = Session()
     logging.info(f'Запрос ответов из гугл формы {spreadsheet_name}')
     data = get_data_from_forms(spreadsheet_name)
     for entry in data:
         add_or_update_lecture(session, entry)
+
 
 def update_user_id(tg_username, tg_userid):
     session = Session()
@@ -164,6 +172,7 @@ def update_user_id(tg_username, tg_userid):
     session.commit()
     session.close()
 
+
 def get_subscribers_id():
     subscribers_with_id = []
     for subscriber in get_subscribers():
@@ -171,12 +180,14 @@ def get_subscribers_id():
             subscribers_with_id.append(subscriber['tg_id'])
     return subscribers_with_id
 
+
 def get_subscribers_username():
     subscribers_with_id = []
     for subscriber in get_subscribers():
         if subscriber['tg_username']:
             subscribers_with_id.append(subscriber['tg_username'])
     return subscribers_with_id
+
 
 def check_if_admin(tg_userid):
     session = Session()
@@ -195,6 +206,7 @@ def check_if_admin(tg_userid):
     session.close()
     return False
 
+
 def check_if_has_access(tg_userid, tg_username):
     session = Session()
     user = session.query(User).filter(
@@ -207,6 +219,7 @@ def check_if_has_access(tg_userid, tg_username):
         return True
     else:
         return False
+
 
 def check_mailing_status():
     session = Session()
@@ -225,3 +238,43 @@ def check_mailing_status():
     session.commit()
     print("Проверены статусы рассылок.")
     session.close()
+    
+    
+#получить лекции текущего месяца
+def get_lectures_of_month():
+    session = Session()
+    
+    # Get current month and year
+    current_month = datetime.datetime.now().month
+    current_year = datetime.datetime.now().year
+    
+    # Query lectures for the current month
+    lectures = session.query(Lecture).filter(
+        extract('month', Lecture.date) == current_month,
+        extract('year', Lecture.date) == current_year,
+        Lecture.status == 'Запланирована'
+    ).all()
+    
+    lectures_data = [
+        {
+            "lecture_id": str(lecture.lecture_id),
+            "lecture_name": lecture.lecture_name,
+            "lecture_description": lecture.lecture_description,
+            "location": lecture.location,
+            "date": lecture.date.strftime("%d.%m.%Y %H:%M:%S"),
+            "duration": lecture.duration,
+            "additional_info": lecture.additional_info if lecture.additional_info else None,
+            "tg_username": lecture.tg_username,
+            "feedback_url": lecture.feedback_url if lecture.feedback_url else None,
+            "conference_url": lecture.conference_url if lecture.conference_url else None,
+            "lecture_materials_url": lecture.lecture_materials_url if lecture.lecture_materials_url else None,
+            "status": lecture.status if lecture.status else None,
+            "time_in_sheet": lecture.time_in_sheet.strftime("%d.%m.%Y %H:%M:%S") if lecture.time_in_sheet else None,
+            "tags": lecture.tags if lecture.tags else None,
+            "calendar_url": lecture.calendar_url if lecture.calendar_url else None,
+        }
+        for lecture in lectures
+    ]
+    
+    session.close()
+    return lectures_data
