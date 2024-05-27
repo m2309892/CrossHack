@@ -5,13 +5,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import logging
 from html.parser import HTMLParser
-from sqlalchemy_engine import Session
-from workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status, get_active_mailings
-from converters import convert_date, convert_duration
+from db.models import Session
+from db.workers import get_mailings, get_lectures, add_new_mailing, update_user_id, get_subscribers, get_subscribers_id, check_if_admin, check_if_has_access, add_lectures_from_sheets, check_mailing_status, get_active_mailings
+from utils.converters import convert_date, convert_duration
 import threading
-from main_menu_buttons import menu_inline_admin_keyboard, menu_inline_user_keyboard
+from utils.main_menu_buttons import menu_inline_admin_keyboard, menu_inline_user_keyboard
+from params.config import config
 
-API_TOKEN = '5471218632:AAFD0hHTx95SRkycWK88QQurUA96LAahbfU'
+API_TOKEN = config.bot_token
 bot = telebot.TeleBot(API_TOKEN)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

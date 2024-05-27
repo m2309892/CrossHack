@@ -1,5 +1,5 @@
-from sqlalchemy_engine import Mailing, Lecture, Session, User
-from get_data_from_form import get_data_from_forms
+from db.models import Mailing, Lecture, Session, User
+from form_api.get_data_from_form import get_data_from_forms
 import datetime
 from sqlalchemy import update
 import logging
@@ -45,6 +45,36 @@ def get_lectures():
     ]
     session.close()
     return lectures_data
+
+"""def get_lectures_for_month(month):
+    session = Session()
+    month = int(month)
+    year = int(year)
+    lectures_data_monthly = [
+        {
+            "lecture_id": str(lecture.lecture_id),
+            "lecture_name": lecture.lecture_name,
+            "lecture_description": lecture.lecture_description,
+            "location": lecture.location,
+            "date": lecture.date.strftime("%d.%m.%Y %H:%M:%S"),
+            "duration": lecture.duration,
+            "additional_info": lecture.additional_info if lecture.additional_info else None,
+            "tg_username": lecture.tg_username,
+            "feedback_url": lecture.feedback_url if lecture.feedback_url else None,
+            "conference_url": lecture.conference_url if lecture.conference_url else None,
+            "lecture_materials_url": lecture.lecture_materials_url if lecture.lecture_materials_url else None,
+            "status": lecture.status if lecture.status else None,
+            "time_in_sheet": lecture.time_in_sheet.strftime("%d.%m.%Y %H:%M:%S") if lecture.time_in_sheet else None,
+            "tags": lecture.tags if lecture.tags else None,
+            "calendar_url": lecture.calendar_url if lecture.calendar_url else None,
+        }
+        for lecture in session.query(Lecture).filter(
+            func.extract('month', Lecture.date) == month,
+            func.extract('year', Lecture.date) == year
+        ).all()
+    ]
+    session.close()
+    return lectures_data_monthly"""
 
 def get_subscribers():
     session = Session()

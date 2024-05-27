@@ -1,7 +1,6 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-
 def get_data_from_forms(spreadsheet_name):
     """
     Определение списка разрешений для доступа к данным Google Sheets,

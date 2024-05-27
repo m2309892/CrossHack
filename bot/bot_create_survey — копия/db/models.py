@@ -1,18 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from params.config import config
 
-# Database connection details
-DB_USER = 'admin123'
-DB_PASSWORD = 'p0ssw0rd'
-DB_HOST = 'localhost'
-DB_PORT = 5432
-DB_NAME = 'hakaton_db'
-
-# Create SQLAlchemy engine
-DATABASE_URL = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-engine = create_engine(DATABASE_URL)
-
+#DATABASE_URL = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+engine = create_engine(config.db_url) #DATABASE_URL)
 # Base class for declarative models
 Base = declarative_base()
 
